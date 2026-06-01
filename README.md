@@ -8,15 +8,25 @@
 
 ## Карточки
 
-| X-Rite Classic 24 патча | Градационный серый 50 патчей |
-|:---:|:---:|
-| ![Classic 24](color_checker_plants/card_preview/classic.png) | ![Gray ramp 50](color_checker_plants/card_preview/gray_50.png) |
-| ArUco ID 0–3 · 6 × 4 · A4 | ArUco ID 4–7 · 10 × 5 · A4 |
+| X-Rite Classic 24 | Серая рампа 50 | Plants 24 | Sunflower 12 |
+|:---:|:---:|:---:|:---:|
+| ![Classic](color_checker_plants/card_preview/classic.png) | ![Gray 50](color_checker_plants/card_preview/gray_50.png) | ![Plants 24](color_checker_plants/card_preview/plants_24.png) | ![Sunflower 12](color_checker_plants/card_preview/sunflower_12.png) |
+| ID 0–3 · 6×4 | ID 4–7 · 10×5 | ID 0–3 · 6×4 | ID 0–3 · 6×2 |
+| Универсальный | Экспозиция / WB | Зелёные + жёлтые + почва | Подсолнухи |
 
-Напечатать карточку:
+| Карточка | Патчей | Когда использовать |
+|---|---|---|
+| `classic` | 24 | Универсальная полная цветокоррекция |
+| `gray_50` | 50 | Коррекция экспозиции и WB, метод `channel` |
+| `plants_24` | 24 | Зелёные растения: свежие листья, хлороз, почва + нейтральная рампа |
+| `sunflower_12` | 12 | Подсолнухи: лепестки, диск, лист, стебель + нейтральная рампа |
+
+Напечатать:
 ```bash
-python scripts/generate_card.py --preset classic  --output card.png    --dpi 300
-python scripts/generate_card.py --preset gray_50  --output gray_ramp.png --dpi 300
+python scripts/generate_card.py --preset classic      --output classic.png      --dpi 300
+python scripts/generate_card.py --preset gray_50      --output gray_50.png      --dpi 300
+python scripts/generate_card.py --preset plants_24    --output plants_24.png    --dpi 300
+python scripts/generate_card.py --preset sunflower_12 --output sunflower_12.png --dpi 300
 ```
 
 ---
@@ -443,7 +453,7 @@ color-checker-plants/
 ├── scripts/
 │   ├── generate_card.py     — генератор печатной карточки
 │   └── process_image.py     — CLI
-├── card_preview/            — PNG-превью всех пресетов карточек
+│   ├── card_preview/            — PNG-превью всех пресетов карточек
 └── CLAUDE.md
 ```
 
