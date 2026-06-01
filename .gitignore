@@ -45,7 +45,6 @@ htmlcov/
 .nox/
 nosetests.xml
 *.log
-*.png
 *.jpg
 *.jpeg
 *.tif
