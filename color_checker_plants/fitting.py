@@ -30,6 +30,7 @@ def fit_correction(
     measured: NDArray,
     reference: NDArray,
     method: str = "poly",
+    metric: str = "euclidean",
 ) -> dict:
     """
     Compute a colour correction model from measured patch colours to reference values.
@@ -43,6 +44,9 @@ def fit_correction(
                 Use this with achromatic-only training data (grayscale ramps) — the
                 standard matrix/poly methods degenerate to greyscale when all reference
                 patches have R==G==B.
+    metric    : 'euclidean' (default) or 'de2000'.
+                Controls how per-patch residuals are reported in the returned model.
+                'de2000' uses CIE ΔE2000 (perceptually uniform); threshold ≈ 1.0.
 
     Returns
     -------
@@ -65,14 +69,15 @@ def fit_correction(
             W_c, _, _, _ = np.linalg.lstsq(X_c, reference[:, c], rcond=None)
             scales[c], biases[c] = W_c
         predicted = measured * scales + biases
-        residuals = np.sqrt(((predicted - reference) ** 2).sum(axis=1))
+        residuals = _compute_residuals(predicted, reference, metric)
         return {
             "method":    "channel",
             "matrix":    None,
             "expand":    None,
             "scales":    scales.astype(np.float32),
             "biases":    biases.astype(np.float32),
-            "residuals": residuals.astype(np.float32),
+            "residuals": residuals,
+            "metric":    metric,
         }
 
     expand = _get_expand_fn(method)
@@ -81,7 +86,7 @@ def fit_correction(
     W, _, _, _ = np.linalg.lstsq(X, reference, rcond=None)
 
     predicted  = X @ W
-    residuals  = np.sqrt(((predicted - reference) ** 2).sum(axis=1))
+    residuals  = _compute_residuals(predicted, reference, metric)
 
     return {
         "method":    method,
@@ -89,8 +94,19 @@ def fit_correction(
         "expand":    expand,
         "scales":    None,
         "biases":    None,
-        "residuals": residuals.astype(np.float32),
+        "residuals": residuals,
+        "metric":    metric,
     }
+
+
+def _compute_residuals(predicted: NDArray, reference: NDArray, metric: str) -> NDArray:
+    if metric == "de2000":
+        from .utils import delta_e_2000
+        return delta_e_2000(
+            np.clip(predicted, 0, 1).astype(np.float32),
+            np.clip(reference, 0, 1).astype(np.float32),
+        )
+    return np.sqrt(((predicted - reference) ** 2).sum(axis=1)).astype(np.float32)
 
 
 def apply_correction_to_colors(colors: NDArray, model: dict) -> NDArray:

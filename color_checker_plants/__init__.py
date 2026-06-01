@@ -26,6 +26,12 @@ from .fitting    import fit_correction, apply_correction_to_colors, fit_summary
 from .correction import apply_correction, correction_gain_map
 from .extraction import extract_grid_colors
 from .markers    import generate_marker_image, detect_markers, extract_grid_corners
+from .utils      import (
+    load_image, save_image,
+    save_profile, load_profile,
+    delta_e_2000, delta_e_simple,
+    srgb_to_linear, linear_to_srgb,
+)
 
 __version__ = "0.1.0"
 
@@ -41,4 +47,12 @@ __all__ = [
     "generate_marker_image",
     "detect_markers",
     "extract_grid_corners",
+    "load_image",
+    "save_image",
+    "save_profile",
+    "load_profile",
+    "delta_e_2000",
+    "delta_e_simple",
+    "srgb_to_linear",
+    "linear_to_srgb",
 ]

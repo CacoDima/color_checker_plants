@@ -90,8 +90,7 @@ else:
 ## Grayscale Ramp 50 — коррекция экспозиции и WB
 
 **Когда использовать:** нужно исправить равномерный цветовой каст (например,
-съёмка в желтоватом или синеватом освещении) и нет физического 24-патч
-чекера под рукой. Карточка не содержит цветных патчей, поэтому
+съёмка в желтоватом или синеватом освещении). Карточка не содержит цветных патчей, поэтому
 **не исправляет перекрёстные связи каналов** — только масштабирует каждый
 канал независимо.
 
@@ -139,6 +138,182 @@ else:
     cv2.imwrite("corrected.jpg",
                 cv2.cvtColor((corrected * 255).astype("uint8"), cv2.COLOR_RGB2BGR))
 ```
+
+---
+
+## Маскирование колорчекера на итоговом снимке
+
+После коррекции на снимке остаётся область с карточкой. Чтобы не мешала —
+в `DetectionResult` есть поле `checker_polygon`: выпуклая оболочка всех углов
+всех 4 маркеров, покрывает сетку патчей + сами маркеры. Готово для `fillPoly`.
+
+```python
+import numpy as np
+import cv2
+
+result = detect_color_checker(image, ...)
+corrected = apply_correction(image, model)
+
+# Закрасить область колорчекера чёрным
+H, W = image.shape[:2]
+mask = np.zeros((H, W), dtype=np.uint8)
+cv2.fillPoly(mask, [result.checker_polygon], 255)
+corrected[mask > 0] = 0
+```
+
+> Белое поле вокруг карточки не входит в polygon. Если нужно скрыть и его —
+> расширь маску: `mask = cv2.dilate(mask, np.ones((40, 40), np.uint8))`.
+
+---
+
+## Форматы файлов: TIFF и RAW
+
+`load_image()` и `save_image()` из `color_checker_plants` поддерживают:
+
+| Формат | Чтение | Запись |
+|---|---|---|
+| JPEG, PNG | ✓ 8-bit | ✓ 8-bit |
+| TIFF | ✓ 8-bit и 16-bit | ✓ 8-bit и 16-bit |
+| RAW (CR2, CR3, NEF, ARW, ORF, RW2, DNG, RAF …) | ✓ через `rawpy` | — |
+
+```bash
+pip install rawpy        # нужен только для RAW
+```
+
+Полный пример с RAW → коррекция → 16-bit TIFF:
+
+```python
+from color_checker_plants import (
+    load_image, save_image,
+    detect_color_checker, fit_correction, apply_correction,
+)
+from color_checker_plants.templates.colorchecker_24 import (
+    REFERENCE_SRGB, GRID_COLS, GRID_ROWS, MARKER_IDS
+)
+
+image  = load_image("photo.NEF")     # CR2, ARW, DNG и другие — аналогично
+
+result = detect_color_checker(
+    image,
+    grid_cols=GRID_COLS, grid_rows=GRID_ROWS,
+    reference_colors=REFERENCE_SRGB, marker_ids=MARKER_IDS,
+)
+
+if result is None:
+    print("Markers not found")
+else:
+    model     = fit_correction(result.measured_colors, result.reference_colors, method="poly")
+    corrected = apply_correction(image, model)
+    save_image("corrected.tif", corrected, bit_depth=16)   # 16-bit TIFF
+    save_image("corrected.jpg", corrected)                  # 8-bit JPEG для просмотра
+```
+
+> RAW-файлы читаются с применением белого баланса камеры (`use_camera_wb=True`).
+> Авто-яркость отключена (`no_auto_bright=True`) — важно для воспроизводимости.
+
+---
+
+## Фотопрофили — один снимок на серию
+
+Сфотографируй карточку один раз → сохрани модель → применяй ко всей серии
+без повторного обнаружения.
+
+```python
+from color_checker_plants import (
+    load_image, detect_color_checker, fit_correction,
+    apply_correction, save_profile, load_profile, save_image,
+)
+from color_checker_plants.templates.colorchecker_24 import (
+    REFERENCE_SRGB, GRID_COLS, GRID_ROWS, MARKER_IDS
+)
+
+# ── Шаг 1: создать профиль по эталонному снимку ──────────────────────────────
+ref = load_image("reference_with_checker.jpg")
+result = detect_color_checker(ref, grid_cols=GRID_COLS, grid_rows=GRID_ROWS,
+                               reference_colors=REFERENCE_SRGB, marker_ids=MARKER_IDS)
+model = fit_correction(result.measured_colors, result.reference_colors, method="poly")
+save_profile(model, "my_studio.npz")
+
+# ── Шаг 2: применить профиль ко всей серии ───────────────────────────────────
+model = load_profile("my_studio.npz")
+for path in ["plant_01.jpg", "plant_02.jpg", "plant_03.jpg"]:
+    image     = load_image(path)
+    corrected = apply_correction(image, model)
+    save_image(path.replace(".jpg", "_corrected.tif"), corrected, bit_depth=16)
+```
+
+---
+
+## CIE ΔE2000
+
+По умолчанию остатки коррекции считаются как евклидово расстояние в sRGB.
+Для перцептуально корректных цифр используй `metric="de2000"`:
+
+```python
+model = fit_correction(
+    result.measured_colors,
+    result.reference_colors,
+    method="poly",
+    metric="de2000",     # residuals теперь в единицах ΔE2000
+)
+print(f"Mean ΔE2000: {model['residuals'].mean():.2f}")
+# < 1.0 — отличная коррекция
+# 1–2   — хорошая
+# > 3   — заметно на глаз
+```
+
+Также доступна как отдельная функция:
+
+```python
+from color_checker_plants import delta_e_2000
+de = delta_e_2000(measured_colors, reference_colors)
+```
+
+---
+
+## Интеграция с numpy / scikit-image
+
+`result.checker_mask(shape)` возвращает булев `(H, W)` массив — `True` там,
+где карточка. Не нужно вручную писать `fillPoly`.
+
+```python
+mask = result.checker_mask(image.shape)   # (H, W) bool
+
+# Исключить карточку из анализа пикселей
+pixels = image[~mask]                     # только пиксели без карточки
+
+# numpy masked array (для статистики, которая понимает маски)
+import numpy as np
+masked_image = np.ma.masked_array(image, np.repeat(mask[..., None], 3, axis=2))
+mean_color = masked_image.mean(axis=(0, 1))   # средний цвет без карточки
+
+# scikit-image: разметка областей
+from skimage.measure import label, regionprops
+labelled = label(~mask)
+for region in regionprops(labelled):
+    print(region.area, region.centroid)
+```
+
+---
+
+## Детекция по 3 маркерам
+
+Если один из 4 маркеров не виден (закрыт листом, вышел за кадр), библиотека
+автоматически вычисляет четвёртый угол геометрически по трём найденным,
+используя правило параллелограмма (`A + C = B + D`).
+
+При этом выводится предупреждение:
+
+```
+UserWarning: Marker 'bottom_left' not found — extrapolating 4th corner from 3 markers.
+Accuracy may be reduced near that corner.
+```
+
+Код работает без изменений — `detect_color_checker` вернёт результат, а не `None`.
+
+> Точность перспективной коррекции вблизи экстраполированного угла немного ниже.
+> Если важна максимальная точность — убедитесь, что все 4 маркера в кадре.
+> При отсутствии 2 и более маркеров fallback не срабатывает и возвращается `None`.
 
 ---
 
@@ -284,13 +459,3 @@ pip install opencv-contrib-python numpy scipy
 ArUco входит только в contrib-версию.
 
 ---
-
-## Частые проблемы
-
-| Проблема | Причина | Решение |
-|---|---|---|
-| Маркеры не найдены | Маркер вне кадра или перекрыт | Убедиться, что все 4 угла видны полностью |
-| Цвета после коррекции перепутаны (синий↔коричневый) | Карточка сгенерирована со старым багом R↔B | Перегенерировать через `generate_card.py` |
-| Изображение стало чёрно-белым | Использован `poly`/`matrix` с серой рампой | Переключить на `method="channel"` |
-| Средний ΔE > 0.05 | Блик на карточке при съёмке | Снимать при рассеянном свете |
-| `ImportError: cv2.aruco не найден` | Установлен обычный `opencv-python` | `pip uninstall opencv-python && pip install opencv-contrib-python` |

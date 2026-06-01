@@ -14,6 +14,8 @@ The inner corner of each marker is the reference point for perspective correctio
 
 from __future__ import annotations
 
+import warnings
+
 import cv2
 import numpy as np
 from numpy.typing import NDArray
@@ -75,6 +77,10 @@ def extract_grid_corners(
     """
     From detected markers, extract the 4 inner corners that define the colour grid.
 
+    Supports 3-marker fallback: if exactly one marker is missing the fourth
+    corner is extrapolated assuming the card is approximately a parallelogram
+    (A + C = B + D).  A UserWarning is emitted in that case.
+
     Parameters
     ----------
     corners    : Output from detect_markers().
@@ -84,8 +90,8 @@ def extract_grid_corners(
 
     Returns
     -------
-    grid_corners : (4, 2) float32 array ordered [TL, TR, BR, BL], or None if
-                   not all 4 markers were found.
+    grid_corners : (4, 2) float32 array ordered [TL, TR, BR, BL],
+                   or None if fewer than 3 markers were found.
     """
     if ids is None:
         return None
@@ -93,17 +99,43 @@ def extract_grid_corners(
     if marker_ids is None:
         marker_ids = MARKER_IDS
 
-    ids_flat = ids.flatten()
-    corner_map: dict[str, NDArray] = {}
+    _POSITIONS = ("top_left", "top_right", "bottom_right", "bottom_left")
 
-    for position, mid in marker_ids.items():
+    ids_flat  = ids.flatten()
+    corner_map: dict[str, NDArray] = {}
+    missing: list[str] = []
+
+    for position in _POSITIONS:
+        mid     = marker_ids[position]
         matches = np.where(ids_flat == mid)[0]
         if len(matches) == 0:
-            return None
-        idx = matches[0]
-        marker_corners = corners[idx][0]  # shape (4, 2): TL, TR, BR, BL
-        inner_idx = MARKER_INNER_CORNER_INDEX[position]
-        corner_map[position] = marker_corners[inner_idx]
+            missing.append(position)
+            continue
+        marker_corners = corners[matches[0]][0]  # (4, 2): TL, TR, BR, BL
+        corner_map[position] = marker_corners[MARKER_INNER_CORNER_INDEX[position]]
+
+    if len(missing) == 0:
+        pass  # all 4 found — nothing to do
+
+    elif len(missing) == 1:
+        # Parallelogram rule: TL + BR = TR + BL  →  missing = sum of opposite - adjacent
+        pos = missing[0]
+        TL = corner_map.get("top_left")
+        TR = corner_map.get("top_right")
+        BR = corner_map.get("bottom_right")
+        BL = corner_map.get("bottom_left")
+        if   pos == "top_left":     corner_map["top_left"]     = TR + BL - BR
+        elif pos == "top_right":    corner_map["top_right"]    = TL + BR - BL
+        elif pos == "bottom_right": corner_map["bottom_right"] = TR + BL - TL
+        elif pos == "bottom_left":  corner_map["bottom_left"]  = TL + BR - TR
+        warnings.warn(
+            f"Marker '{pos}' not found — extrapolating 4th corner from 3 markers. "
+            "Accuracy may be reduced near that corner.",
+            UserWarning, stacklevel=3,
+        )
+
+    else:
+        return None  # 2+ markers missing — cannot recover
 
     grid_corners = np.array([
         corner_map["top_left"],

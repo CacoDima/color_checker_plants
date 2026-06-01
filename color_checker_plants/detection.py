@@ -47,8 +47,41 @@ class DetectionResult:
     # The 4 grid corner points found in the original image, shape (4, 2) float32
     grid_corners: NDArray
 
+    # Convex hull of all corners of all 4 ArUco markers, int32 (N, 1, 2).
+    # Covers the colour grid AND the markers themselves.
+    # Ready for cv2.fillPoly / cv2.polylines — use to black-out the checker:
+    #
+    #   mask = np.zeros(image.shape[:2], dtype=np.uint8)
+    #   cv2.fillPoly(mask, [result.checker_polygon], 255)
+    #   corrected[mask > 0] = 0
+    checker_polygon: NDArray
+
     # Original image with marker overlays drawn, for debugging
     debug_image: NDArray
+
+    def checker_mask(self, shape: tuple) -> NDArray:
+        """
+        Boolean (H, W) mask — True where the colour checker is located.
+
+        Designed for numpy / scikit-image pipelines: pass image.shape so the
+        mask matches the image dimensions exactly.
+
+        Examples
+        --------
+        Exclude the checker from pixel-level analysis::
+
+            mask = result.checker_mask(image.shape)
+            pixels = image[~mask]                          # all non-checker pixels
+            masked = np.ma.masked_array(image, mask[..., None].repeat(3, axis=2))
+
+        Create a labelled region for scikit-image::
+
+            from skimage.measure import regionprops, label
+            labelled = label(~result.checker_mask(image.shape))
+        """
+        m = np.zeros(shape[:2], dtype=np.uint8)
+        cv2.fillPoly(m, [self.checker_polygon], 1)
+        return m.astype(bool)
 
 
 def detect_color_checker(
@@ -107,6 +140,7 @@ def detect_color_checker(
         reference_colors = reference_colors.astype(np.float32),
         warped_image     = warped,
         grid_corners     = grid_corners,
+        checker_polygon  = _full_card_polygon(corners, ids, marker_ids),
         debug_image      = debug,
     )
 
@@ -146,6 +180,31 @@ def _to_float32(image: NDArray) -> NDArray:
     if img.dtype == np.uint8:
         return img.astype(np.float32) / 255.0
     return img.astype(np.float32)
+
+
+def _full_card_polygon(
+    corners: list[NDArray],
+    ids: NDArray,
+    marker_ids: dict[str, int] | None,
+) -> NDArray:
+    """
+    Convex hull of all 4 corners of every detected checker marker.
+    Covers the grid AND the markers themselves.
+    Returns int32 (N, 1, 2) — ready for cv2.fillPoly / cv2.polylines.
+    """
+    from .templates.colorchecker_24 import MARKER_IDS as _DEFAULT_IDS
+    if marker_ids is None:
+        marker_ids = _DEFAULT_IDS
+    ids_flat = ids.flatten()
+    pts = []
+    for mid in marker_ids.values():
+        matches = np.where(ids_flat == mid)[0]
+        if len(matches) == 0:
+            continue
+        pts.append(corners[matches[0]][0])  # all 4 corners of this marker, shape (4, 2)
+    all_pts = np.vstack(pts).astype(np.float32)   # (16, 2)
+    hull = cv2.convexHull(all_pts)                # (K, 1, 2) float32
+    return hull.astype(np.int32)
 
 
 def _to_bgr_uint8(image: NDArray) -> NDArray:
