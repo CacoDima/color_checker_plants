@@ -38,18 +38,42 @@ def fit_correction(
     ----------
     measured  : (N, 3) float32 — colours sampled from the photo.
     reference : (N, 3) float32 — corresponding ground-truth reference colours.
-    method    : 'matrix', 'poly', or 'root_poly'.
+    method    : 'matrix', 'poly', 'root_poly', or 'channel'.
+                'channel' fits each RGB channel independently (R_out=f(R_in) only).
+                Use this with achromatic-only training data (grayscale ramps) — the
+                standard matrix/poly methods degenerate to greyscale when all reference
+                patches have R==G==B.
 
     Returns
     -------
     model : dict with keys:
         'method'  : str
-        'matrix'  : (K, 3) least-squares weight matrix
-        'expand'  : callable that maps (N, 3) → (N, K) feature matrix
+        'matrix'  : (K, 3) weight matrix  (None for 'channel')
+        'expand'  : feature expansion fn  (None for 'channel')
+        'scales'  : (3,) per-channel scale (only for 'channel')
+        'biases'  : (3,) per-channel bias  (only for 'channel')
         'residuals': per-patch ΔE (approximate, in sRGB space)
     """
     measured  = np.asarray(measured,  dtype=np.float64)
     reference = np.asarray(reference, dtype=np.float64)
+
+    if method == "channel":
+        scales = np.zeros(3, dtype=np.float64)
+        biases = np.zeros(3, dtype=np.float64)
+        for c in range(3):
+            X_c = np.column_stack([measured[:, c], np.ones(len(measured))])
+            W_c, _, _, _ = np.linalg.lstsq(X_c, reference[:, c], rcond=None)
+            scales[c], biases[c] = W_c
+        predicted = measured * scales + biases
+        residuals = np.sqrt(((predicted - reference) ** 2).sum(axis=1))
+        return {
+            "method":    "channel",
+            "matrix":    None,
+            "expand":    None,
+            "scales":    scales.astype(np.float32),
+            "biases":    biases.astype(np.float32),
+            "residuals": residuals.astype(np.float32),
+        }
 
     expand = _get_expand_fn(method)
     X = expand(measured)          # (N, K)
@@ -63,6 +87,8 @@ def fit_correction(
         "method":    method,
         "matrix":    W.astype(np.float32),
         "expand":    expand,
+        "scales":    None,
+        "biases":    None,
         "residuals": residuals.astype(np.float32),
     }
 
@@ -73,6 +99,9 @@ def apply_correction_to_colors(colors: NDArray, model: dict) -> NDArray:
 
     Returns float32 values clipped to [0, 1].
     """
+    if model["method"] == "channel":
+        corrected = np.asarray(colors, dtype=np.float32) * model["scales"] + model["biases"]
+        return np.clip(corrected, 0.0, 1.0).astype(np.float32)
     X = model["expand"](np.asarray(colors, dtype=np.float64))
     corrected = (X @ model["matrix"]).astype(np.float32)
     return np.clip(corrected, 0.0, 1.0)
