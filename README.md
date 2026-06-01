@@ -8,7 +8,7 @@
 
 | X-Rite Classic 24 патча | Градационный серый 50 патчей |
 |:---:|:---:|
-| ![Classic 24](color_checker_plants/card_preview/classic_24.png) | ![Gray ramp 50](color_checker_plants/card_preview/gray_ramp_50.png) |
+| ![Classic 24](color_checker_plants/card_preview/classic.png) | ![Gray ramp 50](color_checker_plants/card_preview/gray_50.png) |
 | ArUco ID 0–3 · 6 × 4 · A4 | ArUco ID 4–7 · 10 × 5 · A4 |
 
 Напечатать карточку:

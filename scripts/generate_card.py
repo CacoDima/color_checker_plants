@@ -303,8 +303,7 @@ Examples:
         marker_ids=card_marker_ids,
     )
 
-    out_bgr = cv2.cvtColor(card, cv2.COLOR_RGB2BGR)
-    cv2.imwrite(args.output, out_bgr)
+    cv2.imwrite(args.output, card)
     print(f"Saved {args.output}  ({card.shape[1]}x{card.shape[0]} px, {args.dpi} DPI)")
     print(f"Print at {args.dpi} DPI for correct physical dimensions.")
 

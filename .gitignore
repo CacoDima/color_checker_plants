@@ -13,6 +13,7 @@ build/
 .Python
 pip-wheel-metadata/
 MANIFEST
+debug.py
 
 # ── Virtual environments ──────────────────────────────────────────────────────
 .venv/
@@ -44,6 +45,15 @@ htmlcov/
 .nox/
 nosetests.xml
 *.log
+*.png
+*.jpg
+*.jpeg
+*.tif
+*.tiff
+*.pdf
+*.xml
+*.csv
+*.json
 
 # ── Type checkers ─────────────────────────────────────────────────────────────
 .mypy_cache/
