@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "color-checker-plants"
+version = "0.1.0"
+description = "Robust colour-checker detection via ArUco markers, perspective correction, and polynomial colour fitting"
+requires-python = ">=3.9"
+dependencies = [
+    "numpy>=1.24",
+    "opencv-contrib-python>=4.7",
+    "scipy>=1.10",
+]
+
+[project.scripts]
+generate-card   = "scripts.generate_card:main"
+process-image   = "scripts.process_image:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["color_checker_plants*"]

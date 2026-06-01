@@ -1,0 +1,113 @@
+# ── Python ───────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+.Python
+pip-wheel-metadata/
+MANIFEST
+
+# ── Virtual environments ──────────────────────────────────────────────────────
+.venv/
+venv/
+env/
+ENV/
+.env
+.env.*
+
+# ── Distribution / packaging ──────────────────────────────────────────────────
+*.whl
+*.tar.gz
+*.zip
+sdist/
+wheels/
+*.dist-info/
+
+# ── Jupyter ───────────────────────────────────────────────────────────────────
+.ipynb_checkpoints/
+*.ipynb
+
+# ── Testing / coverage ────────────────────────────────────────────────────────
+.pytest_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.tox/
+.nox/
+nosetests.xml
+*.log
+
+# ── Type checkers ─────────────────────────────────────────────────────────────
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyright/
+pyrightconfig.json
+
+# ── IDE — VS Code ─────────────────────────────────────────────────────────────
+.vscode/
+*.code-workspace
+
+# ── IDE — JetBrains / PyCharm ────────────────────────────────────────────────
+.idea/
+*.iml
+*.iws
+out/
+
+# ── IDE — Sublime / Atom ─────────────────────────────────────────────────────
+*.sublime-project
+*.sublime-workspace
+
+# ── OS ────────────────────────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ── Claude Code ───────────────────────────────────────────────────────────────
+CLAUDE.md
+.claude/
+
+# ── Project outputs ───────────────────────────────────────────────────────────
+# Generated cards (keep card_preview/ which is committed as visual reference)
+*.npz
+*_corrected.jpg
+*_corrected.png
+*_corrected.tif
+*_debug.jpg
+*_debug.png
+*_warped.jpg
+*_warped.png
+
+# Loose generated PNGs in root (use card_preview/ folder instead)
+card_preview.png
+gray_ramp.png
+color_checker_card.png
+
+# Large raw/processed images that shouldn't be in the repo
+*.raw
+*.arw
+*.cr2
+*.cr3
+*.nef
+*.dng
+*.tiff
+*.tif
+
+# ── Secrets / local config ────────────────────────────────────────────────────
+*.pem
+*.key
+secrets.json
+local_config.py
