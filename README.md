@@ -8,7 +8,7 @@
 
 ## Карточки
 
-| X-Rite Classic 24 | Серая рампа 50 | Plants 24 | Sunflower 12 |
+| X-Rite Classic 24 | Градация серого 50 | Растения 24 | Подсолнух 12 |
 |:---:|:---:|:---:|:---:|
 | ![Classic](color_checker_plants/card_preview/classic.png) | ![Gray 50](color_checker_plants/card_preview/gray_50.png) | ![Plants 24](color_checker_plants/card_preview/plants_24.png) | ![Sunflower 12](color_checker_plants/card_preview/sunflower_12.png) |
 | ID 0–3 · 6×4 | ID 4–7 · 10×5 | ID 0–3 · 6×4 | ID 0–3 · 6×2 |
@@ -16,7 +16,7 @@
 
 | Карточка | Патчей | Когда использовать |
 |---|---|---|
-| `classic` | 24 | Универсальная полная цветокоррекция |
+| `classic` | 24 | Универсальная полная цветокоррекция, но для повседневных объектов |
 | `gray_50` | 50 | Коррекция экспозиции и WB, метод `channel` |
 | `plants_24` | 24 | Зелёные растения: свежие листья, хлороз, почва + нейтральная рампа |
 | `sunflower_12` | 12 | Подсолнухи: лепестки, диск, лист, стебель + нейтральная рампа |
@@ -432,29 +432,6 @@ python scripts/process_image.py reference.jpg --save-model shoot.npz
 
 # Применить ко всей серии снимков:
 python scripts/process_image.py apply --model shoot.npz *.jpg
-```
-
----
-
-## Структура проекта
-
-```
-color-checker-plants/
-├── color_checker_plants/
-│   ├── __init__.py          — публичное API
-│   ├── markers.py           — поиск ArUco, извлечение углов сетки
-│   ├── detection.py         — главный пайплайн
-│   ├── extraction.py        — sigma-clipped mean по ячейкам
-│   ├── fitting.py           — подбор матрицы МНК
-│   ├── correction.py        — применение коррекции к изображению
-│   └── templates/
-│       ├── colorchecker_24.py    — эталонные цвета 24-патч + маппинг маркеров
-│       └── grayscale_ramp_50.py  — 50 серых патчей, маркеры ID 4–7
-├── scripts/
-│   ├── generate_card.py     — генератор печатной карточки
-│   └── process_image.py     — CLI
-│   ├── card_preview/            — PNG-превью всех пресетов карточек
-└── CLAUDE.md
 ```
 
 ---
